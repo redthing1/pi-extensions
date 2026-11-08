@@ -1,0 +1,8 @@
+{
+	"name": "pi-extension-contracts",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"check": "bun run scripts/check.ts"
+	}
+}

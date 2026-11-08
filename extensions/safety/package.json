@@ -1,0 +1,11 @@
+{
+  "name": "pi-safety-extension",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "bun run scripts/check.ts",
+    "check:shell": "bun run scripts/check-shell.ts",
+    "e2e:model": "bun run scripts/e2e.ts",
+    "smoke:tui": "bun run scripts/tui-smoke.ts"
+  }
+}

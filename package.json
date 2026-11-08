@@ -1,0 +1,29 @@
+{
+  "name": "rt1-pi-extensions",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "node scripts/check.mjs"
+  },
+  "pi": {
+    "extensions": [
+      "./extensions/agent-search/index.ts",
+      "./extensions/apply-patch/index.ts",
+      "./extensions/ask-user/index.ts",
+      "./extensions/background-work/index.ts",
+      "./extensions/compact-horizon/index.ts",
+      "./extensions/completion-notification.ts",
+      "./extensions/execution-guard/index.ts",
+      "./extensions/goal/index.ts",
+      "./extensions/llamacpp-router/index.ts",
+      "./extensions/permission-gate.ts",
+      "./extensions/safety/index.ts",
+      "./extensions/schedule/index.ts",
+      "./extensions/startup-banner.ts",
+      "./extensions/subagents/index.ts",
+      "./extensions/teleport/index.ts",
+      "./extensions/vllm-router/index.ts",
+      "./extensions/you-should-know/index.ts"
+    ]
+  }
+}

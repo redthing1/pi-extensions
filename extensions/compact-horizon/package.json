@@ -1,0 +1,8 @@
+{
+  "name": "pi-compact-horizon-extension",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "bun run scripts/check.ts"
+  }
+}

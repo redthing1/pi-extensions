@@ -1,0 +1,9 @@
+{
+  "name": "pi-goal-extension",
+  "private": true,
+  "type": "module",
+  "scripts": {
+		"check": "bun run scripts/check.ts",
+		"verify": "bun run scripts/verify-core.ts"
+  }
+}

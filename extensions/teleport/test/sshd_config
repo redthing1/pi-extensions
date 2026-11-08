@@ -1,0 +1,31 @@
+Port 2222
+ListenAddress 0.0.0.0
+AddressFamily any
+HostKey /etc/ssh/ssh_host_ed25519_key
+HostKey /etc/ssh/ssh_host_rsa_key
+PidFile /run/sshd.pid
+AuthorizedKeysFile .ssh/authorized_keys
+PermitRootLogin no
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+PubkeyAuthentication yes
+PermitEmptyPasswords no
+UsePAM no
+StrictModes yes
+AllowUsers teleport
+# Intentionally permissive: tests must prove the client prevents forwarding.
+AcceptEnv *
+AllowAgentForwarding yes
+AllowTcpForwarding yes
+GatewayPorts no
+X11Forwarding yes
+PermitTunnel yes
+PermitUserEnvironment no
+PermitUserRC no
+PrintMotd no
+PrintLastLog no
+TCPKeepAlive yes
+ClientAliveInterval 15
+ClientAliveCountMax 3
+LogLevel VERBOSE
+Subsystem sftp internal-sftp
