@@ -20,13 +20,17 @@ In `~/.pi/agent/settings.json`:
 
 Restart Pi. Configure individual features in your agent directory.
 
-Includes [Safety](extensions/safety/), [Execution Guard](extensions/execution-guard/),
-[Teleport](extensions/teleport/), [Subagents](extensions/subagents/),
-[Goal](extensions/goal/), [background work](extensions/background-work/),
-[Ask User](extensions/ask-user/), [Agent Search](extensions/agent-search/),
-[llama.cpp](extensions/llamacpp-router/) and [vLLM](extensions/vllm-router/) adapters,
-[compaction](extensions/compact-horizon/), [scheduling](extensions/schedule/),
-[side questions](extensions/you-should-know/), and the rt1 terminal presentation.
+## Extensions
+
+| Area | Extensions |
+| --- | --- |
+| Workspace | [Teleport](extensions/teleport/), [Subagents](extensions/subagents/) |
+| Tools | [Apply Patch](extensions/apply-patch/), [Ask User](extensions/ask-user/), [Agent Search](extensions/agent-search/) |
+| Workflows | [Goal](extensions/goal/), [Background Work](extensions/background-work/), [Schedule](extensions/schedule/) |
+| Context | [Compact Horizon](extensions/compact-horizon/), [BTW & You Should Know](extensions/you-should-know/) |
+| Safety | [Safety](extensions/safety/), [Execution Guard](extensions/execution-guard/), [Permission Gate](extensions/permission-gate.ts) |
+| Providers | [llama.cpp](extensions/llamacpp-router/), [vLLM](extensions/vllm-router/) |
+| Terminal | [rt1 Header](extensions/startup-banner.ts), [Completion Notifications](extensions/completion-notification.ts) |
 
 ## Development
 
