@@ -1,32 +1,32 @@
-# Ask user
+# Ask User
 
-`ask_user({ questions: [{ question, label?, options?: [{ label, description? }] }] })`
-opens a TUI form and returns the submitted questions and answers. Up to six
-questions and eight choices per question; free text is always available.
+Ask a set of questions in one interactive form.
 
-The optional question label names its tab. Choose with arrows and Enter or a
-number; use **Type something** for free text or Ctrl+E to qualify a choice.
-Left/right moves between tabs outside the editor. Tab/Shift+Tab works throughout,
-preserving unfinished text. The Submit tab reviews answers before sending them;
-drafts must be confirmed first. Escape backs out of editing, then cancels the form.
-**Chat about this** closes the form and asks the agent to discuss the current
-question. Neither cancellation nor discussion submits drafts.
+## Usage
 
-Long content wraps and scrolls. Key hints follow configured bindings. Form-only
-actions `extension.askUser.previous`, `extension.askUser.next`, and
-`extension.askUser.edit` can be remapped in `keybindings.json`; their defaults are
-Shift+Tab, Tab, and Ctrl+E. Ordinary editor keys retain their meaning while typing.
+```ts
+ask_user({
+  questions: [{
+    question: "Which approach should we use?",
+    label: "Approach",
+    options: [{ label: "Small change" }, { label: "Full rewrite" }]
+  }]
+})
+```
 
-The tool waits for input, requires the interactive TUI, and has no plan mode or
-timeout. It uses the existing Teleport and Safety integration contracts and keeps
-drafts in memory. Session shutdown and tool cancellation close the form.
+A form accepts up to six questions and eight choices per question. Free text is
+always available. `label` names the question's tab; option descriptions are optional.
 
-Run isolated checks with `PI_ASK_CHECKOUT=/path/to/pi-mono node scripts/check.mjs`.
+Choose with arrows and Enter or a number. **Type something** opens free text;
+Ctrl+E qualifies a choice. Tab and Shift+Tab move between tabs. The Submit tab
+reviews the batch before sending it. Escape backs out of editing, then cancels.
+**Chat about this** closes the form and returns the discussion to the conversation.
 
-`scripts/live.mjs` runs synthetic scenarios with `opencode-go/deepseek-v4.1-flash`
-through the existing Docker/Teleport fixture. Invoke only with authorization for
-live inference and use of the selected provider credential. It requires explicit
-`PI_ASK_CHECKOUT`, `PI_ASK_AUTH_SOURCE`, and `PI_ASK_DOCKER_IMAGE` (a reviewed local
-`sha256:` image ID). Optional `PI_ASK_CLI` selects the installed CLI. Use a short
-temporary base for SSH/tmux socket paths. The controller keeps credentials outside
-the container and removes its state, keys, terminal, and container after testing.
+## Keybindings
+
+In `keybindings.json`, remap `extension.askUser.previous`,
+`extension.askUser.next`, and `extension.askUser.edit`. Their defaults are
+Shift+Tab, Tab, and Ctrl+E.
+
+The tool requires the TUI and waits for a submission or cancellation. Drafts stay
+in memory; tool cancellation and session shutdown close the form.

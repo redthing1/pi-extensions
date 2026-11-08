@@ -1,32 +1,21 @@
-# Schedule Extension
+# Schedule
 
-Minimal in-session scheduling for Pi.
+Send a follow-up later or create a repeating prompt in the current session.
 
-- `/schedule` opens the TUI panel.
-- `/delay 10m review the deployment` creates a one-shot scheduled follow-up.
-- State is stored as custom session entries and is not sent to the model.
-- Scheduled prompts are delivered with `sendUserMessage()`.
-- Timers only run while the session is open.
-- Restoring a session or resuming a paused overdue schedule runs it at most once.
+## Usage
 
-Accepted duration examples:
+```text
+/delay 10m Review the deployment
+```
 
-- `10m`
-- `1h30m`
-- `2 hours`
-- `1h and 15m`
-- `in 1.5h`
+`/delay <duration> <message>` creates a one-shot follow-up. Use a compact duration
+such as `30s`, `10m`, `1h30m`, or `2d`.
 
-`/delay` uses a compact duration as its first argument, such as `30s`, `10m`,
-`1h30m`, or `2d`. Manage or cancel the resulting one-shot schedule with
-`/schedule`.
+`/schedule` opens the panel to create, edit, pause, resume, run, or delete a schedule.
+Choose a relative delay, local time, or repeating interval. Relative forms include
+`2 hours` and `1h and 15m`; local-time forms include `14:30`, `tomorrow 9am`, and
+`fri 17:00`.
 
-Accepted local time examples:
-
-- `14:30`
-- `9am`
-- `tomorrow 9:30`
-- `fri 17:00`
-- `2026-06-18 9am`
-- `6/18 9am`
-
+Choose whether a busy agent waits until idle or queues the prompt as a follow-up.
+Timers run only while the session is open. Schedule state is saved with the
+conversation; restoring a session runs an overdue one-shot schedule at most once.

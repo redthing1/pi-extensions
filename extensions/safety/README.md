@@ -1,52 +1,38 @@
-# Pi Safety Extension
+# Safety
 
-Safety has one user-facing surface and two internal engines:
+Control action approvals and command containment for local and Teleport workspaces.
+Safety starts disabled.
 
-- Reins decides whether actions are allowed, need approval, or are blocked.
-- Containment enforces filesystem, network, and environment restrictions.
+## Usage
 
-Pi emits one immutable finalized Bash launch for model tools, interactive
-`!`/`!!`, and RPC. Safety analyzes that exact command and working directory.
-It does not replace Pi's Bash tool.
-
-Reins and Containment are independent. Either can be enabled without the
-other. If Containment is selected but unavailable, Safety blocks Bash instead
-of silently running it uncontained.
-
-Darwin containment preserves the selected `DEVELOPER_DIR` and an explicit
-`SDKROOT`. It permits xcrun's named cache files in macOS's per-user temporary
-directory; unrelated files there remain subject to the normal filesystem policy.
-
-Run the collection checks from the repository root as described in the
-[development guide](../../README.md#development).
-
-Use it in Pi:
-
-```bash
+```sh
 pi --safety --safety-profile explore
 ```
 
-Profiles are `off`, `explore`, `code`, `guarded`, `watch`, and `monitor`.
-Use `watch` when you want Safety to ask before risky actions without running
-commands in containment.
+`/safety` opens the control panel. Choose a profile there or with
+`/safety profile <name>`. Available profiles are `off`, `explore`, `code`,
+`guarded`, `watch`, and `monitor`. Use `watch` for approval prompts without
+command containment.
 
-Inside Pi, `/safety` opens the Safety panel. Command shortcuts are still
-available, including `/safety status`, `/safety profile`, `/safety approvals`,
-`/safety forget`, `/safety explain`, and `/safety audit`.
+| Command | Action |
+| --- | --- |
+| `/safety status` | Show the effective policy. |
+| `/safety explain` | Explain the current configuration. |
+| `/safety approvals` | List reusable approvals. |
+| `/safety forget` | Forget an approval. |
+| `/safety audit` | Show audit status. |
 
-In ZDR and no-session modes, Safety keeps reusable approvals in memory for the
-live session only. Workspace approvals are neither loaded nor written, audit
-recording is disabled, and approval prompts do not offer workspace persistence.
+## Policy
 
-When a managed child process is launched, Safety—not the child launcher—owns
-Safety inheritance. It passes a private, versioned, ephemeral context containing
-the exact effective parent policy, reusable approvals, and delegation-scoped
-path grants. The child retargets that policy to its actual workspace. Project
-policy may tighten an active inherited policy, but it does not activate Safety
-when the parent has turned it off. One-time command approval for the launch is
-never transferred as command approval inside the child.
+Reins handles allow, approval, and block decisions. Containment restricts command
+filesystem, network, and environment access. Either can be enabled independently;
+requested containment that is unavailable blocks execution.
 
-Safety is a lightweight best-effort guard, not a security boundary against
-hostile installed extensions, privileged processes, kernel flaws, or every
-filesystem race. Incomplete shell analysis asks rather than treating an action
-as safe.
+User configuration lives in `safety/config.json` under the Pi agent directory.
+Project `.pi/safety.json` rules can tighten the policy. Managed children inherit
+the effective parent policy and reusable grants, but never a one-time launch
+approval as unrestricted command approval.
+
+Client ZDR keeps reusable approvals in memory, disables workspace approval
+persistence, and turns off audit recording. Safety is a best-effort guard;
+installed extensions still run with the Pi process's permissions.

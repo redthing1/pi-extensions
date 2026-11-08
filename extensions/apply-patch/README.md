@@ -1,9 +1,16 @@
 # Apply Patch
 
-Adds a structured `apply_patch` tool for GPT-named models alongside Pi's built-in
-`edit` and `write` tools.
+Add a structured `apply_patch` tool alongside Pi's `edit` and `write` tools.
+The tool is enabled for GPT-named models.
 
-Supports `create_file`, `update_file`, `delete_file`, and optional `move_path`
-on updates. Operations run sequentially against the active workspace. Paths
-expand `~`, accept absolute paths, and resolve relative paths against the workspace.
-Updates preserve existing CRLF line endings; very large patch payloads are rejected.
+## Usage
+
+A patch can contain these operations:
+
+- `create_file` creates a file.
+- `update_file` edits a file and optionally moves it with `move_path`.
+- `delete_file` removes a file.
+
+Operations run sequentially in the active workspace. Relative paths resolve
+from its working directory; absolute paths and `~` are accepted. Updates preserve
+CRLF line endings. Very large patch payloads are rejected.

@@ -1,28 +1,30 @@
-# goal
+# Goal
 
-Pi extension for a single branch-local looping goal.
+Keep Pi working toward one explicit goal, with an optional token budget.
 
-Behavior:
+## Usage
 
-- Registers `/goal`.
-- Registers `get_goal`, `create_goal`, and `update_goal`.
-- Keeps one branch-local goal in append-only session entries.
-- Automatically appends a continuation after a normal Pi settlement, preserving the model's cached context. Pi alone owns provider retries. A terminal provider error leaves the goal active but marks its loop as waiting; a later successful turn clears that marker, while `/goal resume` clears it explicitly and restarts the loop.
-- Supports token budgets such as `80k` and `1.5m`.
-- Shows a compact footer status, an interactive status panel, and a form-style setup flow.
+```text
+/goal Implement the new command --budget 80k
+```
 
-Commands:
+`/goal` opens setup or the current goal panel. The footer shows progress.
+A goal belongs to the current conversation branch.
 
-- `/goal` opens setup when no goal exists, or the panel when a goal exists.
-- `/goal <objective> [--budget 80k]` sets or replaces a goal after confirmation.
-- `/goal replace <objective> [--budget 80k]` replaces without confirmation.
-- `/goal status`, `/goal pause`, `/goal resume`, `/goal clear`.
-- `/goal budget <tokens|clear>` sets or clears the token budget.
+| Command | Action |
+| --- | --- |
+| `/goal status` | Show state and usage. |
+| `/goal pause` | Pause continuation. |
+| `/goal resume` | Resume a paused, blocked, or waiting goal. |
+| `/goal replace <objective> [--budget 80k]` | Replace the goal without confirmation. |
+| `/goal budget <tokens>`, `/goal budget clear` | Set or remove the budget. |
+| `/goal clear` | Clear the goal. |
 
-Shortcut:
+Budgets accept values such as `80k` and `1.5m`. F8 pauses or resumes the goal.
+Setting a new objective through `/goal <objective>` asks before replacing an
+existing goal.
 
-- `F8` pauses an active goal or resumes a paused, blocked, or waiting goal.
-
-`create_goal` only creates explicitly requested goals, `get_goal` reads state, and `update_goal` only marks a goal `complete` or `blocked`.
-
-Reload with `/reload` in Pi after editing this extension.
+The model can read, explicitly create, complete, or mark a repeatedly blocked
+goal through `get_goal`, `create_goal`, and `update_goal`. A normal settlement
+continues an active goal. A terminal provider error leaves it waiting until a
+successful turn or `/goal resume`.
