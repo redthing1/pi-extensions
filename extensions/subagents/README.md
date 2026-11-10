@@ -32,11 +32,6 @@ provide continuation calls. Inspection and completion notices do not collect a
 result; reading its final page does. Collected runs remain available by ID or
 with `includeCollected: true`.
 
-If cancellation is still pending after 30 seconds, the tool returns status without
-collecting results. Cleanup continues, and running children keep their slots until
-it finishes. Use `subagent_list` or `subagent_wait` to follow progress. Escape ends
-the wait while cancellation continues.
-
 `/subagents` opens the live panel. A child granted `parent_message` can send findings
 while it continues. Finished children cannot be reopened.
 
