@@ -75,6 +75,7 @@ try {
 		"extensions/schedule/scripts/check.ts",
 		"extensions/execution-guard/scripts/check.ts",
 		"extensions/safety/scripts/check.ts",
+		"extensions/teleport/scripts/check.ts",
 		"extensions/subagents/scripts/check.ts",
 		...readdirSync(join(root, "extensions/compact-horizon/test")).filter((name) => name.endsWith(".test.ts"))
 			.map((name) => `extensions/compact-horizon/test/${name}`),

@@ -39,6 +39,7 @@ import { StartSchema, ListSchema, RunIdsSchema, SendSchema, WaitSchema } from ".
 import type { CommissionInput, PreparedCommission, RunTargetView, SubagentToolDetails } from "./types.ts";
 
 type StartParams = Static<typeof StartSchema>;
+const DEFAULT_WAIT_SECONDS = 30;
 
 export type SubagentIntegrations = ChildRuntimeContributors;
 
@@ -146,7 +147,7 @@ export function registerSubagentTools(
 			executionMode: "parallel",
 			async execute(_toolCallId, params, signal, onUpdate) {
 				try {
-					const timeoutSeconds = params.timeoutSeconds === undefined ? 30 : params.timeoutSeconds;
+					const timeoutSeconds = params.timeoutSeconds === undefined ? DEFAULT_WAIT_SECONDS : params.timeoutSeconds;
 					const targets = await scheduler.wait(
 						params.ids,
 						signal,
@@ -241,18 +242,34 @@ export function registerSubagentTools(
 		defineTool<typeof RunIdsSchema, SubagentToolDetails>({
 			name: "subagent_cancel",
 			label: "Subagent Cancel",
-			description: "Cancel selected children and await cleanup. Completed siblings keep their uncollected results.",
+			description:
+				`Cancel selected children and wait up to ${DEFAULT_WAIT_SECONDS} seconds for cleanup. Pending cancellation continues in the background. Completed siblings keep their uncollected results.`,
 			promptSnippet: "Cancel subagent runs explicitly",
 			parameters: RunIdsSchema,
 			executionMode: "parallel",
 			async execute(_toolCallId, params, signal, onUpdate) {
+				const deadline = new AbortController();
+				const waitSignal = signal ? AbortSignal.any([signal, deadline.signal]) : deadline.signal;
+				const timer = setTimeout(() => deadline.abort(), DEFAULT_WAIT_SECONDS * 1000);
 				try {
-					const targets = await scheduler.cancel(params.ids, signal, (updated) =>
+					const targets = await scheduler.cancel(params.ids, waitSignal, (updated) =>
 						onUpdate?.(toolResult("cancel", updated, formatList(updated))),
 					);
 					return toolResult("cancel", targets, formatTargets(targets));
 				} catch (error) {
+					if (deadline.signal.aborted && !signal?.aborted) {
+						const targets = scheduler.targets(params.ids);
+						const result = toolResult(
+							"cancel",
+							targets,
+							`Cancellation is still in progress; no results collected. Use subagent_list or subagent_wait to follow progress.\n\n${formatList(targets)}`,
+						);
+						result.details.timedOut = true;
+						return result;
+					}
 					return errorResult("cancel", error, []);
+				} finally {
+					clearTimeout(timer);
 				}
 			},
 			renderCall: (args, theme) => renderLifecycleCall("subagent_cancel", args, theme),

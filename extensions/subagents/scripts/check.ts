@@ -1917,6 +1917,24 @@ function checkContextualRendering(): void {
 	assert.equal(cancelled.match(/Child run was cancelled\./gu)?.length, 1);
 	assert.equal(formatTargets([cancelledChild]), "Useful partial output.\n\nChild run was cancelled.");
 	assert(!cancelled.includes("Cancellation settled"));
+
+	const pendingChild: ChildView = {
+		...first,
+		state: "running",
+		activity: "cleaning up",
+		finishedAt: undefined,
+		result: undefined,
+		collected: false,
+		toolCalls: [fixtureToolCall("active", "bash", "waiting", "running")],
+	};
+	const pending = renderedResult("cancel", [pendingChild], formatList([pendingChild]));
+	pending.details.timedOut = true;
+	for (const expanded of [false, true]) {
+		const rendered = renderText(renderSubagentResult(pending, expanded, plainTheme));
+		assert(rendered.includes("Cancellation pending"));
+		assert(rendered.includes("Cleanup continues · /subagents for status"));
+		assert(rendered.includes("cleaning up"));
+	}
 }
 
 function checkCommunicationRendering(): void {

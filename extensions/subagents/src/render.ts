@@ -271,12 +271,17 @@ function renderCancellation(details: SubagentToolDetails, text: string, expanded
 	const state = details.error ? "failed" : aggregateState(details.targets);
 	container.addChild(
 		new TruncatedText(
-			`${stateGlyph(state, theme)} ${theme.fg("toolTitle", theme.bold(aggregateLabel(children, state)))}${statsSuffix(details.targets, children, presentations, theme)}`,
+			details.timedOut
+				? theme.fg("toolTitle", theme.bold("Cancellation pending"))
+				: `${stateGlyph(state, theme)} ${theme.fg("toolTitle", theme.bold(aggregateLabel(children, state)))}${statsSuffix(details.targets, children, presentations, theme)}`,
 		),
 	);
 	if (details.error) {
 		container.addChild(new Text(`  ${theme.fg("error", details.error)}`, 0, 0));
 		return container;
+	}
+	if (details.timedOut) {
+		container.addChild(new Text(theme.fg("muted", "Cleanup continues · /subagents for status"), 2, 0));
 	}
 	for (const child of children) {
 		if (expanded) renderExpandedChild(container, child, presentations.get(child.id), theme);
@@ -340,6 +345,8 @@ export function renderExpandedChild(
 	);
 	const stats = childStats(child, presentation, theme, true).trim();
 	if (stats) container.addChild(new Text(stats, 2, 0));
+	const activity = childActivity(child, presentation);
+	if (activity) container.addChild(new Text(theme.fg("dim", activity), 2, 0));
 	container.addChild(new Text(theme.fg("dim", child.task), 2, 0));
 	renderChildContext(container, child, theme);
 	if (presentation?.error && !presentation.preview?.includes(presentation.error))
@@ -500,6 +507,7 @@ function batchStats(batch: BatchView, presentations: Map<string, ChildPresentati
 
 function childActivity(child: ChildView, presentation: ChildPresentation | undefined): string | undefined {
 	if (child.state !== "running") return undefined;
+	if (child.activity === "cancelling" || child.activity === "cleaning up") return child.activity;
 	const active = presentation?.toolCalls.filter((tool) => tool.status === "running") ?? [];
 	const current = active.at(-1);
 	if (!current) return child.activity || "waiting for model output";

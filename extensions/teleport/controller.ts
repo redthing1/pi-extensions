@@ -12,6 +12,8 @@ import type {
 import { createChildWorkspaceOperations } from "./workspace/child.ts";
 import { createWorkspaceProvider, type TeleportWorkspaceProvider } from "./workspace/provider.ts";
 
+const RESOURCE_DISCOVERY_TIMEOUT_MS = 15_000;
+
 export interface WorkspaceResources {
 	contextFiles: WorkspaceContextFile[];
 	skillDocuments: WorkspaceSkillDocument[];
@@ -232,11 +234,19 @@ export function emptyWorkspaceResources(): WorkspaceResources {
 	return { contextFiles: [], skillDocuments: [], promptDocuments: [] };
 }
 
-export async function loadWorkspaceResources(client: WorkspaceClient): Promise<WorkspaceResources> {
-	const [contextFiles, skillDocuments, promptDocuments] = await Promise.all([
-		client.context(),
-		client.skills(),
-		client.prompts(),
-	]);
-	return { contextFiles, skillDocuments, promptDocuments };
+export async function loadWorkspaceResources(
+	client: Pick<WorkspaceClient, "context" | "skills" | "prompts">,
+): Promise<WorkspaceResources> {
+	let timer: ReturnType<typeof setTimeout> | undefined;
+	try {
+		const [contextFiles, skillDocuments, promptDocuments] = await Promise.race([
+			Promise.all([client.context(), client.skills(), client.prompts()]),
+			new Promise<never>((_resolve, reject) => {
+				timer = setTimeout(() => reject(new Error("Teleport resource discovery timed out")), RESOURCE_DISCOVERY_TIMEOUT_MS);
+			}),
+		]);
+		return { contextFiles, skillDocuments, promptDocuments };
+	} finally {
+		clearTimeout(timer);
+	}
 }

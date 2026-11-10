@@ -1,5 +1,5 @@
 import { spawn, type ChildProcess, type ChildProcessWithoutNullStreams } from "node:child_process";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -107,13 +107,6 @@ export class MasterConnection {
 			SSH_CLOSE_TIMEOUT_MS,
 		);
 		return { ok: result.code === 0, output: `${result.stdout}${result.stderr}`.trim() };
-	}
-
-	async upload(localPath: string, remotePath: string): Promise<void> {
-		const content = await readFile(localPath);
-		const command = `umask 077; set -C; cat > ${quotePosix(remotePath)}`;
-		const result = await this.run(command, content);
-		if (result.code !== 0) throw new Error(`Worker upload failed: ${result.stderr.trim()}`);
 	}
 
 	async run(

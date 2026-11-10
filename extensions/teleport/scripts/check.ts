@@ -15,6 +15,7 @@ import "./worker-command-check.ts";
 import "./outputs-check.ts";
 import "./client-check.ts";
 import "./connection-check.ts";
+import "./scratch-check.ts";
 import "./workspace-check.ts";
 import { checkWorkerPaths } from "./worker-paths-check.ts";
 

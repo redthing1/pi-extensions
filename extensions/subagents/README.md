@@ -25,12 +25,17 @@ stays within the parent's provider and scoped models. `background` is required:
 | `subagent_list` | List outstanding work or inspect selected children. |
 | `subagent_send` | Send context or steering to a running child. |
 | `subagent_wait` | Wait for results; the default timeout is 30 seconds. |
-| `subagent_cancel` | Cancel selected children and await cleanup. |
+| `subagent_cancel` | Request cancellation and wait up to 30 seconds for cleanup. |
 
 `subagent_wait` accepts `timeoutSeconds: null` to wait indefinitely. Large results
 provide continuation calls. Inspection and completion notices do not collect a
 result; reading its final page does. Collected runs remain available by ID or
 with `includeCollected: true`.
+
+If cancellation is still pending after 30 seconds, the tool returns status without
+collecting results. Cleanup continues, and running children keep their slots until
+it finishes. Use `subagent_list` or `subagent_wait` to follow progress. Escape ends
+the wait while cancellation continues.
 
 `/subagents` opens the live panel. A child granted `parent_message` can send findings
 while it continues. Finished children cannot be reopened.

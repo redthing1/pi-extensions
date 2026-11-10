@@ -1,3 +1,4 @@
+import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { type MasterConnection, quotePosix } from "./master.ts";
@@ -39,9 +40,18 @@ export class RemoteScratch {
 
 	async installWorker(workerPath = DEFAULT_WORKER): Promise<void> {
 		if (!this.allocated) throw new Error("Remote scratch is not allocated");
-		for (const name of WORKER_ASSETS) {
-			await this.master.upload(join(dirname(workerPath), name), `${this.path}/${name}`);
-		}
+		const files = await Promise.all(
+			WORKER_ASSETS.map(async (name) => ({
+				path: `${this.path}/${name}`,
+				content: await readFile(join(dirname(workerPath), name), "utf8"),
+			})),
+		);
+		const command = [
+			"umask 077; set -Ce",
+			...files.map((file) => `printf %s ${quotePosix(file.content)} > ${quotePosix(file.path)}`),
+		].join("; ");
+		const result = await this.master.run(command);
+		if (result.code !== 0) throw new Error(`Worker upload failed: ${result.stderr.trim()}`);
 	}
 
 	get needsCleanup(): boolean {
