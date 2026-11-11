@@ -272,7 +272,16 @@ export default function teleportExtension(pi: ExtensionAPI): void {
 		};
 	});
 	pi.on("session_before_switch", async (event, ctx) => {
-		if (!bound) return;
+		if (!bound) {
+			if (event.reason === "new" || !event.targetSessionFile) return;
+			try {
+				if (!await readSessionMarker(event.targetSessionFile)) return;
+				ctx.ui.notify("Resume this Teleport session with a matching --teleport target.", "error");
+			} catch (error) {
+				ctx.ui.notify(safeTerminalText(`Teleport session switch refused: ${String(error)}`), "error");
+			}
+			return { cancel: true };
+		}
 		const current = controller;
 		if (!current?.workspace) {
 			ctx.ui.notify("Teleport workspace is unavailable", "error");

@@ -28,7 +28,7 @@ export function registerTeleportCommand(pi: ExtensionAPI, getController: () => T
 		description: "Inspect Teleport, reconnect, or disconnect",
 		getArgumentCompletions: (prefix) =>
 			["reconnect", "disconnect"]
-				.filter((value) => value.startsWith(prefix))
+				.filter((value) => value !== prefix && value.startsWith(prefix))
 				.map((value) => ({ value, label: value })),
 		handler: async (args, ctx) => {
 			const controller = getController();
