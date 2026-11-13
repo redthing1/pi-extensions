@@ -393,7 +393,7 @@ it("guards actual TUI ! and !! commands without loading personal state", async (
 		"100",
 		"-y",
 		"35",
-		"zsh -f",
+		`zsh -f -c ${quote(shell)}`,
 	]);
 	const pane = `=${session}:0.0`;
 	execFileSync("tmux", ["set-option", "-w", "-t", `=${session}:0`, "remain-on-exit", "on"]);
@@ -403,7 +403,6 @@ it("guards actual TUI ! and !! commands without loading personal state", async (
 		execFileSync("tmux", ["send-keys", "-t", pane, "Enter"]);
 	};
 	try {
-		enter(shell);
 		await until(() => {
 			const text = capture();
 			if (
