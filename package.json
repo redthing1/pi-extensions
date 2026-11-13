@@ -15,6 +15,7 @@
       "./extensions/completion-notification.ts",
       "./extensions/execution-guard/index.ts",
       "./extensions/goal/index.ts",
+      "./extensions/intercom/index.ts",
       "./extensions/llamacpp-router/index.ts",
       "./extensions/permission-gate.ts",
       "./extensions/safety/index.ts",

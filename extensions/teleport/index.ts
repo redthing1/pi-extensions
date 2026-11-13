@@ -125,7 +125,11 @@ export default function teleportExtension(pi: ExtensionAPI): void {
 						const allowed = new Set(
 							[
 								...selectedTools,
-								...pi.getActiveTools().filter((name) => workspace.provider.compatibleTools.has(name)),
+								...pi
+									.getActiveTools()
+									.filter(
+										(name) => isTeleportClientTool(name) || workspace.provider.compatibleTools.has(name),
+									),
 							].filter((name) => isTeleportToolAllowed(name, workspace.provider.compatibleTools)),
 						);
 						if (selectedTools.size) allowed.add("read_output");

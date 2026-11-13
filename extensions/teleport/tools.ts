@@ -27,6 +27,8 @@ import type { RemoteOutputs } from "./outputs.ts";
 const CONTROL_PLANE_TOOLS = new Set([
 	"create_goal",
 	"get_goal",
+	"intercom_list",
+	"intercom_send",
 	"question",
 	"read_output",
 	"request_plan_input",
