@@ -1,4 +1,4 @@
-import { StringEnum, Type } from "@earendil-works/pi-ai";
+import { Type } from "typebox";
 import { Text } from "@earendil-works/pi-tui";
 import type { AgentToolResult, ExtensionAPI, ToolDefinition } from "@earendil-works/pi-coding-agent";
 import { toolGoalText } from "./prompts.js";
@@ -18,7 +18,7 @@ const CreateGoalParamsSchema = Type.Object(
 );
 const UpdateGoalParamsSchema = Type.Object(
 	{
-		status: StringEnum(["complete", "blocked"] as const, {
+		status: Type.Union([Type.Literal("complete"), Type.Literal("blocked")], {
 			description:
 				"Required. Set to complete only when the objective is achieved and no required work remains. Set to blocked only after the same blocking condition has recurred for at least three consecutive goal turns and the agent is at an impasse.",
 		}),

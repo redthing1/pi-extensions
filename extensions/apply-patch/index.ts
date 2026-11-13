@@ -2,7 +2,7 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
-import { type Static, StringEnum, Type } from "@earendil-works/pi-ai";
+import { type Static, Type } from "typebox";
 import {
 	type AgentToolResult,
 	type AgentToolUpdateCallback,
@@ -27,7 +27,7 @@ const UNICODE_SPACES = /[\u00A0\u2000-\u200A\u202F\u205F\u3000]/g;
 
 const operationSchema = Type.Object(
 	{
-		type: StringEnum(["create_file", "update_file", "delete_file"] as const),
+		type: Type.Union([Type.Literal("create_file"), Type.Literal("update_file"), Type.Literal("delete_file")]),
 		path: Type.String({ description: "Path to patch (relative or absolute)" }),
 		diff: Type.Optional(
 			Type.String({

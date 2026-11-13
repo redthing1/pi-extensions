@@ -1,5 +1,4 @@
 import { fileURLToPath } from "node:url";
-import { StringEnum } from "@earendil-works/pi-ai";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 
@@ -168,13 +167,13 @@ function registerAgentSearch(
 				}),
 				maxResults: Type.Optional(Type.Integer({ minimum: 1, maximum: 10, description: "Default: 8" })),
 				source: Type.Optional(
-					StringEnum(["web", "wikipedia"] as const, {
+					Type.Union([Type.Literal("web"), Type.Literal("wikipedia")], {
 						description: "Default: web",
 					}),
 				),
 				site: Type.Optional(Type.String({ description: "Web only; hostname filter" })),
 				timeRange: Type.Optional(
-					StringEnum(["day", "week", "month", "year"] as const, {
+					Type.Union([Type.Literal("day"), Type.Literal("week"), Type.Literal("month"), Type.Literal("year")], {
 						description: "Web only; age filter",
 					}),
 				),
