@@ -551,7 +551,7 @@ test.each([false, true])(
 		finish();
 		await vi.waitFor(() => expect(h.session.messages.some((m) => m.role === "custom")).toBe(true));
 		const notice = getMessageText(h.session.messages.find((m) => m.role === "custom"));
-		expect(notice).toContain("timed out after 1 seconds");
+		expect(notice).toContain("timed out after 1 second");
 		expect(notice).toContain(": failed");
 		expect(notice.length).toBeLessThan(4500);
 		const path = notice.match(/^Full output: (.+)$/m)?.[1];
@@ -562,7 +562,7 @@ test.each([false, true])(
 		}
 		expect(path).toBeTruthy();
 		expect(readFileSync(path!, "utf8")).toMatch(/^diagnostic-start\n/);
-		expect(readFileSync(path!, "utf8")).toContain("timed out after 1 seconds");
+		expect(readFileSync(path!, "utf8")).toContain("timed out after 1 second");
 	},
 );
 

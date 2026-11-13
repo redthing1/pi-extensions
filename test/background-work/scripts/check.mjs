@@ -15,7 +15,7 @@ const checkout = process.env.PI_BACKGROUND_CHECKOUT;
 if (!checkout)
 	throw new Error("PI_BACKGROUND_CHECKOUT must name the Pi checkout");
 const root = fileURLToPath(new URL("..", import.meta.url));
-const fixture = mkdtempSync(join(tmpdir(), "pi-background-check-"));
+const fixture = mkdtempSync(join(process.platform === "darwin" ? "/tmp" : tmpdir(), "pi-background-check-"));
 try {
 	for (const name of ["home", "agent", "tmp"])
 		mkdirSync(join(fixture, name), { mode: 0o700 });

@@ -5,6 +5,7 @@ import { afterEach, expect, test, vi } from "vitest";
 import { fauxAssistantMessage, fauxToolCall } from "@earendil-works/pi-ai";
 import { initTheme } from "@earendil-works/pi-coding-agent";
 import fixture from "./teleport-fixture.ts";
+import { TeleportConnection } from "../../../extensions/teleport/transport/connection.ts";
 
 const checkout = process.env.PI_BACKGROUND_CHECKOUT!;
 const { createHarness, createTestUiContext, getMessageText, getToolResult } =
@@ -17,11 +18,11 @@ const containerTest = process.env.PI_BACKGROUND_SSH_CONFIG ? test : test.skip;
 const call = (name: string, args: Record<string, unknown>) =>
 	fauxAssistantMessage(fauxToolCall(name, args), { stopReason: "toolUse" });
 const answer = (text: string) => fauxAssistantMessage(text);
-async function setup() {
+async function setup(shell?: { timeoutSeconds: number; maxTimeoutSeconds: number }) {
 	initTheme("dark", false);
 	const h = await createHarness({
 		extensionFactories: [fixture],
-		settings: { compaction: { enabled: false }, retry: { enabled: false } },
+		settings: { compaction: { enabled: false }, retry: { enabled: false }, ...(shell ? { shell } : {}) },
 	});
 	harnesses.push(h);
 	await h.session.bindExtensions({
@@ -37,6 +38,55 @@ afterEach(async () => {
 			reason: "exit",
 		});
 		h.cleanup();
+	}
+});
+
+containerTest(
+	"a foreground remote command yields automatically and stops at its original default deadline",
+	async () => {
+		const h = await setup({ timeoutSeconds: 40, maxTimeoutSeconds: 60 });
+		h.setResponses([
+			call("bash", { command: "printf '%s' \"$$\" > deadline.pid; printf partial-output; sleep 100" }),
+			answer("Continued."),
+		]);
+		await h.session.prompt("Run the synthetic foreground command.");
+		const receipt = h.eventsOfType("tool_execution_end").find((event) => event.toolName === "bash")!.result;
+		expect(receipt.structuredContent).toEqual({ status: "running", jobId: "1" });
+		expect(getMessageText(receipt)).toContain("is running in the background");
+		h.setResponses([
+			call("background_wait", { id: "1" }),
+			call("bash", { command: 'if kill -0 "$(cat deadline.pid)" 2>/dev/null; then exit 1; else printf stopped; fi' }),
+			answer("Inspected."),
+		]);
+		await h.session.prompt("Collect the result and confirm the process exited.");
+		const result = getMessageText(getToolResult(h, "background_wait"));
+		expect(result).toContain("Command timed out after 40 seconds");
+		expect(result).toContain("partial-output");
+		expect(getMessageText(getToolResult(h, "bash"))).toBe("stopped");
+	},
+	60_000,
+);
+
+containerTest("the remote worker enforces its own deadline and retains truncated output", async () => {
+	const connection = new TeleportConnection({
+		destination: "background-fixture",
+		sshConfigPath: process.env.PI_BACKGROUND_SSH_CONFIG!,
+		onFailure(error) {
+			throw error;
+		},
+	});
+	try {
+		await connection.start(process.env.PI_BACKGROUND_REMOTE_CWD!);
+		const result = await connection.workspace.exec(
+			"trap '' TERM; head -c 60000 /dev/zero | tr '\\0' x; sleep 30",
+			undefined,
+			{ timeout: 0.2 },
+		).promise;
+		expect(result.timedOut).toBe(true);
+		expect(result.fullOutputPath).toBeDefined();
+		expect((await connection.workspace.read(result.fullOutputPath!)).length).toBe(60_000);
+	} finally {
+		await connection.close();
 	}
 });
 

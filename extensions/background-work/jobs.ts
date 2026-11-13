@@ -12,12 +12,14 @@ type Update = NonNullable<Parameters<ShellTool["execute"]>[3]>;
 const MAX_RUNNING = 8;
 const MAX_RETAINED = 64;
 export const WAIT_SECONDS = 60;
+const FOREGROUND_SECONDS = 30;
 type WaitOutcome = "completed" | "released" | "timeout";
 
 export interface Job {
 	id: string;
 	label: string;
 	background: boolean;
+	promotion?: "manual" | "automatic";
 	wake: boolean;
 	announced: boolean;
 	state: "starting" | "running" | "stopping" | "finished" | "failed" | "stopped";
@@ -31,7 +33,7 @@ export interface Job {
 	error?: Error;
 	done: Promise<void>;
 	promoted: Promise<void>;
-	promote(): boolean;
+	promote(reason?: "manual" | "automatic"): boolean;
 }
 
 export function textOf(result: Pick<Result, "content">): string {
@@ -62,7 +64,6 @@ export class Jobs {
 	readonly entries = new Map<string, Job>();
 	private next = 1;
 	private closed = false;
-	private reservations = 0;
 	private readonly waits = new Set<{
 		job: Job;
 		action: "wait" | "stop";
@@ -75,11 +76,11 @@ export class Jobs {
 	}
 
 	private admit(): void {
-		const retained = [...this.entries.values()].filter((job) => job.background);
-		if (this.reservations + retained.filter((job) => !terminal(job)).length >= MAX_RUNNING)
-			throw new Error(`At most ${MAX_RUNNING} background commands can run at once. Stop or finish one first.`);
-		while (retained.length + this.reservations >= MAX_RETAINED) {
-			const index = retained.findIndex((job) => terminal(job) && job.announced);
+		const retained = [...this.entries.values()];
+		if (retained.filter((job) => !terminal(job)).length >= MAX_RUNNING)
+			throw new Error(`At most ${MAX_RUNNING} managed commands can run at once. Stop or finish one first.`);
+		while (retained.length >= MAX_RETAINED) {
+			const index = retained.findIndex((job) => job.background && terminal(job) && job.announced);
 			if (index < 0)
 				throw new Error("Background results are awaiting inspection. Inspect completed jobs before starting more.");
 			this.entries.delete(retained[index].id);
@@ -99,10 +100,8 @@ export class Jobs {
 		monitor = false,
 	): Promise<Job> {
 		if (this.closed || signal?.aborted) throw new Error("Background launch cancelled");
-		if (background) {
-			this.admit();
-			this.reservations++;
-		}
+		this.admit();
+		let promotionTimer: ReturnType<typeof setTimeout> | undefined;
 		let started!: () => void;
 		const ready = new Promise<void>((resolve) => {
 			started = resolve;
@@ -124,11 +123,12 @@ export class Jobs {
 			promoted: new Promise<void>((resolve) => {
 				promoted = resolve;
 			}),
-			promote: () => {
+			promote: (reason = "manual") => {
 				if (job.background || job.result || job.state !== "running" || job.controller.signal.aborted || signal?.aborted)
 					return false;
-				if (!background) this.admit();
+				clearTimeout(promotionTimer);
 				job.background = true;
+				job.promotion = reason;
 				job.announced = false;
 				detach();
 				promoted();
@@ -151,6 +151,7 @@ export class Jobs {
 						// The native tool's initial update follows its final launch guard.
 						if (job.state === "starting") {
 							job.state = "running";
+							if (!background) promotionTimer = setTimeout(() => job.promote("automatic"), FOREGROUND_SECONDS * 1000);
 							started();
 						}
 						job.preview = preview(textOf(partial));
@@ -174,10 +175,15 @@ export class Jobs {
 				outcome = job.result.isError ? "failed" : "finished";
 			} catch (error) {
 				job.error = error instanceof Error ? error : new Error(String(error));
-				job.diagnostic = preview(error instanceof ShellExecutionError ? error.diagnostic : job.error.message);
+				const diagnostic = error instanceof ShellExecutionError ? error.diagnostic : job.error.message;
+				job.diagnostic = preview(diagnostic);
 				if (error instanceof ShellExecutionError) job.fullOutputPath = error.fullOutputPath;
-				outcome = job.controller.signal.aborted ? "stopped" : "failed";
+				const aborted =
+					diagnostic === "aborted" || diagnostic === "Command aborted" ||
+					(typeof job.controller.signal.reason === "string" && diagnostic === job.controller.signal.reason);
+				outcome = job.controller.signal.aborted && aborted ? "stopped" : "failed";
 			} finally {
+				clearTimeout(promotionTimer);
 				if (job.wake) job.monitor?.finish();
 				if (job.monitor?.failure) outcome = "failed";
 				job.diagnostic = job.monitor?.failure ?? job.diagnostic;
@@ -210,22 +216,18 @@ export class Jobs {
 				this.changed();
 			}
 		})();
-		try {
-			await ready;
-			if (!job.background && job.monitor?.failure) {
-				await job.done;
-				this.entries.delete(job.id);
-				throw new Error(job.monitor.failure);
-			}
-			if (job.error) {
-				this.entries.delete(job.id);
-				throw job.error;
-			}
-			if (background) job.promote();
-			return job;
-		} finally {
-			if (background) this.reservations--;
+		await ready;
+		if (!job.background && job.monitor?.failure) {
+			await job.done;
+			this.entries.delete(job.id);
+			throw new Error(job.monitor.failure);
 		}
+		if (job.error) {
+			this.entries.delete(job.id);
+			throw job.error;
+		}
+		if (background) job.promote();
+		return job;
 	}
 
 	get(id: string): Job {

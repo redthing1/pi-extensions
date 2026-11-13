@@ -214,7 +214,7 @@ export function registerBackgroundWork(pi: ExtensionAPI) {
 
 	function receipt(job: Job, reason: "started" | "promoted" | "released" | "timeout" = "started") {
 		const introduction =
-			reason === "promoted" || reason === "released"
+			reason === "released" || (reason === "promoted" && job.promotion === "manual")
 				? `The user chose to continue without waiting for job ${job.id}. `
 				: reason === "timeout"
 					? `Wait ended after ${WAIT_SECONDS} seconds. `

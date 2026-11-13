@@ -2,7 +2,12 @@ import { strict as assert } from "node:assert";
 import { WorkspaceClient } from "../workspace/client.ts";
 import type { WorkerResponse } from "../transport/worker-client.ts";
 let response: WorkerResponse = { result: {}, payload: Buffer.alloc(0) };
-const workspace = new WorkspaceClient({ request: () => ({ id: "r1", promise: Promise.resolve(response) }) });
+const workspace = new WorkspaceClient({
+	request: () => ({ id: "r1", promise: Promise.resolve(response) }),
+	invalidate(error) {
+		throw error;
+	},
+});
 function documents(content: string) {
 	response = {
 		result: {},

@@ -75,6 +75,14 @@ export function createProcessOperations({
 
 	async function executeCommand(id, params) {
 		if (typeof params.command !== "string") throw new Error("exec command must be a string");
+		if (
+			params.timeout !== undefined &&
+			(typeof params.timeout !== "number" ||
+				!Number.isFinite(params.timeout) ||
+				params.timeout <= 0 ||
+				params.timeout * 1000 > 2_147_483_647)
+		)
+			throw new Error("exec timeout must be positive finite seconds within the timer range");
 		const shell = typeof params.shell === "string" ? params.shell : shellPath;
 		if (!shell) throw Object.assign(new Error("no supported remote shell is available"), { code: "UNSUPPORTED" });
 		const commandCwd = typeof params.cwd === "string" ? resolveRemotePath(params.cwd) : cwd;
@@ -84,7 +92,15 @@ export function createProcessOperations({
 			env: process.env,
 			stdio: ["ignore", "pipe", "pipe"],
 		});
-		const state = { child, cancelled: false, killTimer: undefined };
+		const state = { child, cancelled: false, timedOut: false, killTimer: undefined };
+		const timeoutTimer =
+			params.timeout === undefined
+				? undefined
+				: setTimeout(() => {
+						state.timedOut = true;
+						state.cancelled = true;
+						terminateCommand(state);
+					}, params.timeout * 1000);
 		const output = createCommandOutputCapture(id);
 		activeCommands.set(id, state);
 		const stdoutPump = pumpCommandOutput(child.stdout, "stdout", id, output);
@@ -96,6 +112,7 @@ export function createProcessOperations({
 			let spawnFailed = false;
 			child.once("error", (error) => {
 				spawnFailed = true;
+				if (timeoutTimer) clearTimeout(timeoutTimer);
 				if (state.killTimer) clearTimeout(state.killTimer);
 				activeCommands.delete(id);
 				rejectChild(error);
@@ -106,14 +123,15 @@ export function createProcessOperations({
 				activeCommands.delete(id);
 				try {
 					await Promise.all([stdoutPump, stderrPump]);
-					let fullOutputPath = await output.finish();
-					if (state.cancelled && fullOutputPath) {
-						await rm(fullOutputPath, { force: true });
-						fullOutputPath = undefined;
-					}
-					writeFrame(FRAME.result, { id, result: { exitCode, signal, cancelled: state.cancelled, fullOutputPath } });
+					const fullOutputPath = await output.finish();
+					writeFrame(FRAME.result, {
+						id,
+						result: { exitCode, signal, cancelled: state.cancelled, timedOut: state.timedOut, fullOutputPath },
+					});
 					resolveChild();
+					if (timeoutTimer) clearTimeout(timeoutTimer);
 				} catch (error) {
+					if (timeoutTimer) clearTimeout(timeoutTimer);
 					try {
 						await output.discard();
 					} catch {

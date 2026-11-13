@@ -19,6 +19,7 @@ export interface WorkspaceExecResult {
 	exitCode: number | null;
 	signal: string | null;
 	cancelled: boolean;
+	timedOut: boolean;
 	fullOutputPath?: string;
 }
 
@@ -37,7 +38,11 @@ export type WorkspaceSkillDocument = WorkspaceResourceDocument;
 export type WorkspacePromptDocument = WorkspaceResourceDocument;
 
 export class WorkspaceClient {
-	constructor(private readonly worker: Pick<WorkerClient, "request">) {}
+	constructor(private readonly worker: Pick<WorkerClient, "request" | "invalidate">) {}
+
+	invalidate(error: Error): void {
+		this.worker.invalidate(error);
+	}
 
 	async read(path: string): Promise<Buffer> {
 		return (await this.worker.request("read", { path }).promise).payload;
@@ -225,9 +230,9 @@ export class WorkspaceClient {
 	exec(
 		command: string,
 		onData?: (stream: "stdout" | "stderr", chunk: Buffer) => void,
-		cwd?: string,
+		options: { cwd?: string; timeout?: number } = {},
 	): { id: string; promise: Promise<WorkspaceExecResult> } {
-		const request = this.worker.request("exec", { command, cwd }, onData);
+		const request = this.worker.request("exec", { command, cwd: options.cwd, timeout: options.timeout }, onData);
 		return {
 			id: request.id,
 			promise: request.promise.then((response) => {
@@ -236,6 +241,7 @@ export class WorkspaceClient {
 					exitCode: optionalNumber(response.result, "exitCode"),
 					signal: optionalString(response.result, "signal"),
 					cancelled: response.result.cancelled === true,
+					timedOut: response.result.timedOut === true,
 					...(fullOutputPath ? { fullOutputPath } : {}),
 				};
 			}),

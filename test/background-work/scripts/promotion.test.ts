@@ -65,6 +65,7 @@ async function setup() {
 	};
 }
 afterEach(async () => {
+	vi.useRealTimers();
 	for (const h of harnesses.splice(0)) {
 		await h.session.extensionRunner.emit({
 			type: "session_shutdown",
@@ -72,6 +73,68 @@ afterEach(async () => {
 		});
 		h.cleanup();
 	}
+});
+
+test("automatic promotion returns a receipt and retains the original execution deadline", async () => {
+	initTheme("dark", false);
+	let launched!: () => void;
+	const started = new Promise<void>((resolve) => {
+		launched = resolve;
+	});
+	let executions = 0;
+	const h = await createHarness({
+		extensionFactories: [
+			(pi) => {
+				registerBackgroundWork(pi);
+				pi.registerTool(
+					createBashToolDefinition("/", {
+						operations: {
+							async exec(_command, _cwd, { timeout, onData, signal }) {
+								executions++;
+								onData(Buffer.from("partial output"));
+								await new Promise<void>((_resolve, reject) => {
+									const timer = setTimeout(() => reject(new Error(`timeout:${timeout}`)), timeout! * 1000);
+									signal?.addEventListener(
+										"abort",
+										() => {
+											clearTimeout(timer);
+											reject(new Error("aborted"));
+										},
+										{ once: true },
+									);
+									launched();
+								});
+								return { exitCode: 0 };
+							},
+						},
+					}),
+				);
+			},
+		],
+		settings: { compaction: { enabled: false }, retry: { enabled: false } },
+	});
+	harnesses.push(h);
+	await h.session.bindExtensions({ mode: "tui", uiContext: createTestUiContext() });
+	vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+	h.setResponses([call({ command: "controlled", timeout: 40 }), answer("Continued."), answer("Collected timeout.")]);
+	const running = h.session.prompt("Run controlled work.");
+	await started;
+	await vi.advanceTimersByTimeAsync(30_000);
+	await running;
+	const receipt = h.eventsOfType("tool_execution_end").find((event) => event.toolName === "bash")!.result;
+	expect(receipt.structuredContent).toEqual({ status: "running", jobId: "1" });
+	expect(getMessageText(receipt)).toContain("Job 1 (controlled) is running in the background");
+	expect(getMessageText(receipt)).not.toContain("The user chose");
+	await vi.advanceTimersByTimeAsync(10_000);
+	h.setResponses([
+		fauxAssistantMessage(fauxToolCall("background_wait", { id: "1" }), { stopReason: "toolUse" }),
+		answer("Inspected."),
+	]);
+	await h.session.prompt("Inspect the completed job.");
+	const result = getMessageText(getToolResult(h, "background_wait"));
+	expect(result).toContain("Command timed out after 40 seconds");
+	expect(result).toContain("partial output");
+	expect(executions).toBe(1);
 });
 
 test("ordinary calls preserve the native result and cannot be promoted after completion", async () => {

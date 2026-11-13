@@ -13,6 +13,7 @@ import {
 	formatSize,
 	type GrepToolDetails,
 	type GrepToolInput,
+	ShellExecutionError,
 	truncateHead,
 	truncateLine,
 } from "@earendil-works/pi-coding-agent";
@@ -109,10 +110,17 @@ export function createRemoteBashOperations(
 				throw new Error("Invalid timeout: must be a finite number of seconds");
 			}
 
-			const request = workspace.exec(command, (_stream, chunk) => onData(chunk));
+			const request = workspace.exec(command, (_stream, chunk) => onData(chunk), { timeout });
 			let timedOut = false;
+			let stopping: ReturnType<typeof setTimeout> | undefined;
 			const cancel = (): void => {
-				void workspace.cancel(request.id).catch(() => {});
+				if (stopping) return;
+				stopping = setTimeout(() => {
+					workspace.invalidate(new Error("Teleport command termination could not be confirmed"));
+				}, 5000);
+				void workspace.cancel(request.id).catch((error) => {
+					workspace.invalidate(error instanceof Error ? error : new Error(String(error)));
+				});
 			};
 			const timeoutHandle =
 				timeout === undefined
@@ -125,18 +133,22 @@ export function createRemoteBashOperations(
 							Math.min(timeout * 1000, 2_147_483_647),
 						);
 			signal?.addEventListener("abort", cancel, { once: true });
+			if (signal?.aborted) cancel();
 
 			try {
 				const result = await request.promise;
-				if (signal?.aborted || result.cancelled) {
-					if (timedOut) throw new Error(`timeout:${timeout}`);
-					throw new Error("aborted");
-				}
+				const fullOutputPath = result.fullOutputPath ? await outputs.registerRemote(result.fullOutputPath) : undefined;
+				let diagnostic: string | undefined;
+				if (signal?.aborted) diagnostic = "aborted";
+				else if (timedOut || result.timedOut) diagnostic = `timeout:${timeout}`;
+				else if (result.cancelled) diagnostic = "aborted";
+				if (diagnostic) throw new ShellExecutionError(diagnostic, "", diagnostic, fullOutputPath);
 				return {
 					exitCode: result.exitCode,
-					fullOutputPath: result.fullOutputPath ? await outputs.registerRemote(result.fullOutputPath) : undefined,
+					fullOutputPath,
 				};
 			} finally {
+				if (stopping) clearTimeout(stopping);
 				if (timeoutHandle) clearTimeout(timeoutHandle);
 				signal?.removeEventListener("abort", cancel);
 			}

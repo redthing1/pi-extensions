@@ -202,7 +202,7 @@ try {
 		output.push(`${stream}:${chunk.toString("utf8")}`);
 	});
 	const exec = await execRequest.promise;
-	assert.deepEqual(exec, { exitCode: 0, signal: null, cancelled: false });
+	assert.deepEqual(exec, { exitCode: 0, signal: null, cancelled: false, timedOut: false });
 	const largeOutput = await workspace.exec(`node -e ${quotePosix("process.stdout.write('x'.repeat(60 * 1024))")}`)
 		.promise;
 	assert.equal(largeOutput.exitCode, 0);

@@ -26,7 +26,7 @@ const answer = (text: string) => fauxAssistantMessage(text);
 const call = (args: Record<string, unknown>) =>
 	fauxAssistantMessage(fauxToolCall("bash", args), { stopReason: "toolUse" });
 
-async function controlled() {
+async function controlled(abortDiagnostic = "aborted") {
 	const h = await createHarness();
 	harnesses.push(h);
 	const pending = new Map<string, () => void>();
@@ -36,7 +36,7 @@ async function controlled() {
 			async exec(command, _cwd, { signal, onData }) {
 				launches++;
 				await new Promise<void>((resolve, reject) => {
-					const abort = () => reject(new Error("aborted"));
+					const abort = () => reject(new Error(abortDiagnostic));
 					if (signal?.aborted) {
 						abort();
 						return;
@@ -68,18 +68,35 @@ async function controlled() {
 	return { owner, start, finish: (name: string) => pending.get(name)!(), launches: () => launches };
 }
 
-test("admission bounds simultaneous launches without preventing foreground work", async () => {
+test("admission reserves capacity for foreground and background launches", async () => {
 	const { owner, start, launches } = await controlled();
-	const jobs = await Promise.all(Array.from({ length: 8 }, (_, n) => start(String(n))));
-	await expect(start("excess")).rejects.toThrow("At most 8");
-	expect(launches()).toBe(8);
 	const foreground = await start("foreground", false);
-	expect(() => foreground.promote()).toThrow("At most 8");
+	const jobs = await Promise.all(Array.from({ length: 7 }, (_, n) => start(String(n))));
+	await expect(start("excess")).rejects.toThrow("At most 8");
+	await expect(start("excess-foreground", false)).rejects.toThrow("At most 8");
+	expect(launches()).toBe(8);
 	expect(foreground.background).toBe(false);
 	expect(foreground.controller.signal.aborted).toBe(false);
+	expect(foreground.promote()).toBe(true);
 	owner.stop(jobs[0]);
 	await jobs[0].done;
-	expect(foreground.promote()).toBe(true);
+	await start("replacement");
+});
+
+test("foreground work automatically promotes once without restarting its invocation", async () => {
+	const { owner, start, finish, launches } = await controlled();
+	vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+	const job = await start("foreground", false);
+	await vi.advanceTimersByTimeAsync(29_999);
+	expect(job.background).toBe(false);
+	await vi.advanceTimersByTimeAsync(1);
+	expect(job.background).toBe(true);
+	expect(job.promotion).toBe("automatic");
+	expect(launches()).toBe(1);
+	expect(job.promote()).toBe(false);
+	finish("foreground");
+	await job.done;
+	expect(vi.getTimerCount()).toBe(0);
 });
 
 test("retention evicts delivered records only and never silently loses pending results", async () => {
@@ -109,6 +126,15 @@ test.each(["stop", "close"] as const)("%s settles an outstanding wait", async (a
 	await waiting;
 	expect(job.state).toBe("stopped");
 	expect(job.announced).toBe(true);
+});
+
+test("unconfirmed termination is a failure rather than a confirmed stop", async () => {
+	const { owner, start } = await controlled("Command termination could not be confirmed");
+	const job = await start("pending");
+	owner.stop(job);
+	await job.done;
+	expect(job.state).toBe("failed");
+	expect(job.diagnostic).toBe("Command termination could not be confirmed");
 });
 
 test.each([false, true])(

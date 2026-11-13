@@ -127,6 +127,11 @@ export class WorkerClient {
 		await this.closePromise;
 	}
 
+	invalidate(error: Error): void {
+		this.fail(error);
+		void this.close().catch(() => {});
+	}
+
 	private accept(chunk: Buffer): void {
 		if (this.closed) return;
 		try {
