@@ -275,8 +275,9 @@ export default function teleportExtension(pi: ExtensionAPI): void {
 		if (!bound) {
 			if (event.reason === "new" || !event.targetSessionFile) return;
 			try {
-				if (!await readSessionMarker(event.targetSessionFile)) return;
-				ctx.ui.notify("Resume this Teleport session with a matching --teleport target.", "error");
+				const marker = await readSessionMarker(event.targetSessionFile);
+				if (!marker) return;
+				ctx.ui.notify("This session requires a matching --teleport target.", "error");
 			} catch (error) {
 				ctx.ui.notify(safeTerminalText(`Teleport session switch refused: ${String(error)}`), "error");
 			}

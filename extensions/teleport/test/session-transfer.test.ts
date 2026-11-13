@@ -92,7 +92,7 @@ async function createRuntime(clientZdr: boolean, target: string | null = "fixtur
 							apiKey: "fixture-key",
 							baseUrl: model.baseUrl,
 							models: [{ ...model, zdr: true }],
-						streamSimple: faux.provider.streamSimple,
+							streamSimple: faux.provider.streamSimple,
 						}),
 					teleport,
 				],
@@ -147,7 +147,7 @@ test.each([
 ])("continues an exported Teleport session (client ZDR %s to %s)", async (sourceZdr, targetZdr) => {
 	const source = await createRuntime(sourceZdr);
 	source.faux.setResponses([fauxAssistantMessage("Before transfer")]);
-	await source.runtime.session.prompt("Remember the synthetic transfer token: maple.");
+	await source.runtime.session.prompt("Remember the project name: maple.");
 	const jsonl = join(source.root, "export with spaces.jsonl");
 	source.runtime.session.exportToJsonl(jsonl);
 	const original = readFileSync(jsonl, "utf8");
@@ -174,7 +174,7 @@ test.each([
 		},
 	]);
 	await target.runtime.session.prompt("Continue after importing.");
-	expect(received).toContain("Remember the synthetic transfer token: maple.");
+	expect(received).toContain("Remember the project name: maple.");
 	expect(readFileSync(jsonl, "utf8")).toBe(original);
 	expect(target.failures).toEqual([]);
 	if (targetZdr) expect(existsSync(join(target.root, "sessions"))).toBe(false);
